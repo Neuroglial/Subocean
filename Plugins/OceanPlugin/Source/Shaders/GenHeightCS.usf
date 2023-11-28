@@ -2,7 +2,7 @@
 
 float SizeInWorld;
 Texture2D Input;
-RWTexture2D<float4> Height;
+RWTexture2D<float> Height;
 
 float3 GetPosition(int2 pos,float2 iResolution,int size)
 {
@@ -82,7 +82,7 @@ void MainCS(uint3 Gid:SV_GroupID,uint3 DTid : SV_DispatchThreadID)
 
 			if(In)
 			{
-				Height[fmod(int2(i+SizeX,j+SizeX),SizeX)].w = GetAvgHeight(OutPos,pos[0],pos[1],pos[2],pos[3]);
+				Height[fmod(int2(i+SizeX,j+SizeX),SizeX)] = GetAvgHeight(OutPos,pos[0],pos[1],pos[2],pos[3]);
 			}
 		}
 	}

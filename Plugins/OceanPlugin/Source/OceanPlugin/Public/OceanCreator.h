@@ -25,12 +25,12 @@ public:
 	TObjectPtr<UTextureRenderTarget2D> GaussRT;
 
 	/** Please add a variable description */
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="默认",DisplayName="置换贴图")
-	TObjectPtr<UTextureRenderTarget2D> DisplaceRT;
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="默认",DisplayName="高度贴图")
+	TObjectPtr<UTextureRenderTarget2D> HeightRT;
 
-	/** Please add a variable description */
-	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="默认",DisplayName="法线贴图")
-	TObjectPtr<UTextureRenderTarget2D> NormalRT;
+	///** Please add a variable description */
+	//UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="默认",DisplayName="法线贴图")
+	//TObjectPtr<UTextureRenderTarget2D> NormalRT;
 
 	/** Please add a variable description */
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="默认",DisplayName="贴图大小")

@@ -13,7 +13,7 @@
 class FOceanInterface
 {
 public:
-	struct FParams
+	struct FDisplaceParams
 	{
 		FVector4f WindAndSeed;
 		float A,G,Time,Smooth,SizeInWorld;
@@ -21,16 +21,41 @@ public:
 		UTextureRenderTarget2D* DisplaceRT;
 		UTextureRenderTarget2D* NormalRT;
 	};
+
+	struct FHeightParams
+	{
+		FVector4f WindAndSeed;
+		float A,G,Time,Smooth,SizeInWorld;
+		UTextureRenderTarget2D* Gauss;
+		UTextureRenderTarget2D* HeightRT;
+	};
 	
 private:
 	static void DispatchRenderThread(
 		FRHICommandListImmediate& RHICmdList,
-		FParams Params,
+		FDisplaceParams Params,
 		TFunction<void()> Callback
 		);
 	
 	static void DispatchGameThread(
-		FParams Params,
+		FDisplaceParams Params,
+		TFunction<void()> Callback)
+	{
+		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
+		[Params, Callback](FRHICommandListImmediate& RHICmdList)
+		{
+			DispatchRenderThread(RHICmdList, Params, Callback);
+		});
+	}
+
+	static void DispatchRenderThread(
+		FRHICommandListImmediate& RHICmdList,
+		FHeightParams Params,
+		TFunction<void()> Callback
+		);
+	
+	static void DispatchGameThread(
+		FHeightParams Params,
 		TFunction<void()> Callback)
 	{
 		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
@@ -43,13 +68,29 @@ private:
 public:
 
 	static void Dispatch(
-		const FParams& Params,
+		const FDisplaceParams& Params,
 		const TFunction<void()>& Callback)
 	{
 		const int size = Params.Gauss->SizeX;
 
 		if(Params.DisplaceRT->SizeY!=size)
 			Params.DisplaceRT->ResizeTarget(size,size);
+		
+		if (IsInRenderingThread()) {
+			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, Callback);
+		}else{
+			DispatchGameThread(Params, Callback);
+		}
+	}
+
+	static void Dispatch(
+		const FHeightParams& Params,
+		const TFunction<void()>& Callback)
+	{
+		const int size = Params.Gauss->SizeX;
+
+		if(Params.HeightRT->SizeY!=size)
+			Params.HeightRT->ResizeTarget(size,size);
 		
 		if (IsInRenderingThread()) {
 			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, Callback);
@@ -68,7 +109,7 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FPhlipSpectrumCompeleted Completed;
 
-	FOceanInterface::FParams Params;
+	FOceanInterface::FDisplaceParams Params;
 	
 	virtual  void Activate() override
 	{

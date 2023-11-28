@@ -23,15 +23,10 @@ AOceanCreator::AOceanCreator()
 	if(GaussRTFinder.Succeeded())
 		GaussRT = GaussRTFinder.Object;
 
-    const ConstructorHelpers::FObjectFinder<UTextureRenderTarget2D> DisplaceRTFinder
-		(TEXT("/Script/Engine.TextureRenderTarget2D'/OceanPlugin/RenderTarget/DisplaceRT.DisplaceRT'"));
+    const ConstructorHelpers::FObjectFinder<UTextureRenderTarget2D> HeightRTFinder
+		(TEXT("/Script/Engine.TextureRenderTarget2D'/OceanPlugin/RenderTarget/HeightRT.HeightRT'"));
 	if(GaussRTFinder.Succeeded())
-		DisplaceRT = DisplaceRTFinder.Object;
-
-    const ConstructorHelpers::FObjectFinder<UTextureRenderTarget2D> NormalRTFinder
-		(TEXT("/Script/Engine.TextureRenderTarget2D'/OceanPlugin/RenderTarget/NormalRT.NormalRT'"));
-	if(GaussRTFinder.Succeeded())
-		NormalRT = NormalRTFinder.Object;
+		HeightRT = HeightRTFinder.Object;
 
     const ConstructorHelpers::FObjectFinder<UMaterialParameterCollection> OceanParametersFinder
 		(TEXT("/Script/Engine.MaterialParameterCollection'/OceanPlugin/OceanParameter.OceanParameter'"));
@@ -47,10 +42,8 @@ void AOceanCreator::BeginPlay()
 	
 	if(GaussRT)
 		GaussRT->ResizeTarget(TexTRSize,TexTRSize);
-	if(DisplaceRT)
-		DisplaceRT->ResizeTarget(TexTRSize,TexTRSize);
-	if(NormalRT)
-		NormalRT->ResizeTarget(TexTRSize,TexTRSize);
+	if(HeightRT)
+		HeightRT->ResizeTarget(TexTRSize,TexTRSize);
 
 	FGaussianInterface::FParams GaussParmas;
 	GaussParmas.Output = GaussRT;
@@ -77,8 +70,8 @@ void AOceanCreator::Tick(float DeltaTime)
 	static float Time = 0.0;
 	Time+=DeltaTime;
 	
-	FOceanInterface::FParams OceanParams{
-		WindAndSeed,A,G,Time,Smooth,SizeInWorld,GaussRT,DisplaceRT,NormalRT
+	FOceanInterface::FHeightParams OceanParams{
+		WindAndSeed,A,G,Time,Smooth,SizeInWorld,GaussRT,HeightRT
 	};
 
 	FOceanInterface::Dispatch(OceanParams,[]{});
