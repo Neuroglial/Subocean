@@ -1,0 +1,56 @@
+#include "/Engine/Public/Platform.ush"
+
+float Time = 1.0;
+float Speed = 1.0;
+float Step = 1.0;
+float Amp = 1.0;
+float WaveLength = 1.0;
+RWTexture2D<float4> Output;
+RWTexture2D<float4> Normal;
+#define PI 3.1415926
+
+[numthreads(32,32,1)]
+void MainCS(uint3 Gid:SV_GroupID,uint3 DTid : SV_DispatchThreadID)
+{
+	float4 Out = float4(0.0,0.0,0.0,1.0);
+	float SizeX,SizeY;
+	Output.GetDimensions(SizeX,SizeY);
+
+	float2 iResolution = float2(SizeX,SizeY);
+	float2 UV = (float2)DTid.xy/iResolution;
+	const int waveNum = 5;
+	float SpeedArr[waveNum] = {0.05,0.08,0.07,0.06,0.09};
+	float StepArr[waveNum] = {0.05,0.08,0.07,0.06,0.09};
+	float AmpsArr[waveNum] = {0.05,0.08,0.07,0.06,0.09};
+	float2 DirectionArr[waveNum] = {{0.5,0.5},{0.3,0.7},{0.1,0.9},{-0.3,0.7},{0.4,-0.6}};
+	float WaveLengthArr[waveNum] ={1,1.3,0.7,0.6,0.9};
+
+	for(int i =0;i<waveNum;i++)
+	{
+		float2 Di = normalize(DirectionArr[i]);
+		float2 XY = UV;
+		float Wi = 2*PI/0.1*WaveLengthArr[i]*WaveLength;
+		float FiT = Wi*SpeedArr[i]*Time*Speed;
+		float Qi = StepArr[i]*Step;
+		float Ai = AmpsArr[i]*Amp;
+
+		Out.x+=Qi*Ai*Di*UV.x*cos(dot(Wi*Di,XY)+FiT);
+		Out.y+=Qi*Ai*Di*UV.y*cos(dot(Wi*Di,XY)+FiT);
+		Out.z+=Ai*sin(dot(Wi*Di,XY)+FiT);
+
+	}
+	
+	Output[DTid.xy] = Out;
+
+
+	
+	AllMemoryBarrierWithGroupSync();
+
+	float3 source = float3(UV,0.0)+Output[DTid.xy].xyz;
+	float3 nearX = float3(float2(DTid.xy+int2(1,0))/iResolution,0.0)+Output[DTid.xy+int2(1,0)].xyz;
+	float3 nearY = float3(float2(DTid.xy+int2(0,1))/iResolution,0.0)+Output[DTid.xy+int2(0,1)].xyz;
+	
+	float3 normal = normalize(cross(nearX-source,nearY-source));
+
+	Normal[DTid.xy] = float4(normal,1.0);
+}

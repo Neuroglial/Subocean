@@ -1,0 +1,112 @@
+#include "/Engine/Public/Platform.ush"
+
+#define PI       3.1415926536f
+
+float A = 0.1;
+float G = 9.8;
+float Time = 0.0f;
+float Smooth;
+float4 WindAndSeed;
+Texture2D<float4> GaussianRandomRT;
+RWTexture2D<float2> HeightSpectrumRT;
+RWTexture2D<float2> DisplaceXSpectrumRT;
+RWTexture2D<float2> DisplaceYSpectrumRT;
+
+
+//计算phillips谱
+float phillips(float2 k);
+
+//Donelan-Banner方向拓展
+float DonelanBannerDirectionalSpreading(float2 k);
+
+float dispersion(float2 k);
+
+float2 complexMultiply(float2 a,float2 b);
+
+//生成高度频谱
+[numthreads(32, 32, 1)]
+void MainCS(uint3 id: SV_DispatchThreadID)
+{
+    float Nx,Ny;
+    HeightSpectrumRT.GetDimensions(Nx,Ny);
+    float2 k = float2(2.0f * PI * id.x / Nx - PI, 2.0f * PI * id.y / Ny - PI);
+
+    float2 gaussian = GaussianRandomRT[id.xy].xy;
+
+    float2 hTilde0 = gaussian * sqrt(abs(phillips(k) * DonelanBannerDirectionalSpreading(k)) / 2.0f);
+    float2 hTilde0Conj = gaussian * sqrt(abs(phillips(-k) * DonelanBannerDirectionalSpreading(-k)) / 2.0f);
+    hTilde0Conj.y *= -1.0f;
+
+    float omegat = dispersion(k) * Time;
+    float c = cos(omegat);
+    float s = sin(omegat);
+    
+    float2 h1 = complexMultiply(hTilde0, float2(c, s));
+    float2 h2 = complexMultiply(hTilde0Conj, float2(c, -s));
+
+    float2 HTilde = h1 + h2;
+    
+    k /= max(0.001f, length(k));
+
+    float2 KxHTilde = complexMultiply(float2(0, -k.x), HTilde);
+    float2 kzHTilde = complexMultiply(float2(0, -k.y), HTilde);
+    
+    HeightSpectrumRT[id.xy] = float2(HTilde)/Smooth;
+    DisplaceXSpectrumRT[id.xy] = float2(KxHTilde)/Smooth;
+    DisplaceYSpectrumRT[id.xy] = float2(kzHTilde)/Smooth;
+}
+
+//计算phillips谱
+float phillips(float2 k)
+{
+    float kLength = length(k);
+    kLength = max(0.001f, kLength);
+    // kLength = 1;
+    float kLength2 = kLength * kLength;
+    float kLength4 = kLength2 * kLength2;
+
+    float windLength = length(WindAndSeed.xy);
+    float  l = windLength * windLength / G;
+    float l2 = l * l;
+
+    float damping = 0.001f;
+    float L2 = l2 * damping * damping;
+
+    //phillips谱
+    return  A * exp(-1.0f / (kLength2 * l2)) / kLength4 * exp(-kLength2 * L2);
+}
+
+//Donelan-Banner方向拓展
+float DonelanBannerDirectionalSpreading(float2 k)
+{
+    float betaS = 0.1f;
+    float omegap = 0.855f * G / length(WindAndSeed.xy);
+    float ratio = dispersion(k) / omegap;
+
+    if (ratio < 0.95f)
+    {
+        betaS = 2.61f * pow(ratio, 1.3f);
+    }
+    if(ratio >= 0.95f && ratio < 1.6f)
+    {
+        betaS = 2.28f * pow(ratio, -1.3f);
+    }
+    if(ratio > 1.6f)
+    {
+        float epsilon = -0.4f + 0.8393f * exp(-0.567f * log(ratio * ratio));
+        betaS = pow(10, epsilon);
+    }
+    float theta = atan2(k.y, k.x) - atan2(WindAndSeed.y, WindAndSeed.x);
+
+    return betaS / max(1e-7f, 2.0f * tanh(betaS * PI) * pow(cosh(betaS * theta), 2));
+}
+
+float dispersion(float2 k)
+{
+    return sqrt(G * length(k));
+}
+
+float2 complexMultiply(float2 a,float2 b)
+{
+    return float2(a.x*b.x - a.y*b.y , a.y*b.x + a.x*b.y);
+}

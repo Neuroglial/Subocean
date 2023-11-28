@@ -1,0 +1,29 @@
+#include "/Engine/Public/Platform.ush"
+
+float SizeInWorld;
+Texture2D Input;
+SamplerState InputSamper;
+RWTexture2D<float4> Normal;
+
+[numthreads(32,32,1)]
+void MainCS(uint3 Gid:SV_GroupID,uint3 DTid : SV_DispatchThreadID)
+{
+	int SizeX,SizeY;
+	Normal.GetDimensions(SizeX,SizeY);
+	float2 iResolution = float2(SizeX,SizeY);
+	float2 UV = float2(DTid.xy)/iResolution;
+
+	float4 xx =Input.Sample(InputSamper, UV.xy);
+	//Texture2DSample(Input,InputSamper);
+	float3 source = float3(UV, 0.0) * SizeInWorld + xx.xyz;
+	//float3 source = float3(UV,0.0)*SizeInWorld+Input.Sample(InputSamper,UV).xyz;
+	float3 nearX = float3(SizeInWorld*float2(DTid.xy+int2(1,0))/iResolution,0.0)+Input.Sample(InputSamper,float2(DTid.xy+int2(1,0))/iResolution).xyz;
+	float3 nearY = float3(SizeInWorld*float2(DTid.xy+int2(0,1))/iResolution,0.0)+Input.Sample(InputSamper,float2(DTid.xy+int2(0,1))/iResolution).xyz;
+
+	float3 nearXs = float3(SizeInWorld*float2(DTid.xy+int2(-1,0))/iResolution,0.0)+Input.Sample(InputSamper,float2(DTid.xy+int2(-1,0))/iResolution).xyz;
+	float3 nearYs = float3(SizeInWorld*float2(DTid.xy+int2(0,-1))/iResolution,0.0)+Input.Sample(InputSamper,float2(DTid.xy+int2(0,-1))/iResolution).xyz;
+	
+	float3 normal = normalize(cross(nearX-source,nearY-source));
+	
+	Normal[DTid.xy].xyz = normal;
+}

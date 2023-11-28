@@ -1,0 +1,36 @@
+#include "/Engine/Public/Platform.ush"
+
+float SizeInWorld;
+Texture2D Input;
+SamplerState InputSamper;
+RWTexture2D<float4> Normal;
+
+float3 GetPosition(int2 pos,float2 iResolution,int size)
+{
+	float3 offset = Input[fmod(pos+int2(size,size),size)].xyz;
+	offset += float3(SizeInWorld*float2(pos)/iResolution,0.0f);
+	return offset;
+}
+
+[numthreads(32,32,1)]
+void MainCS(uint3 Gid:SV_GroupID,uint3 DTid : SV_DispatchThreadID)
+{
+	int SizeX,SizeY;
+	Normal.GetDimensions(SizeX,SizeY);
+	float2 iResolution = float2(SizeX,SizeY);
+	float2 UV = float2(DTid.xy)/iResolution;
+	
+	float3 ThisPoint = GetPosition(DTid.xy,iResolution,SizeX);
+
+	float3 P1 = GetPosition(DTid.xy+int2(1,0),iResolution,SizeX);
+	float3 P2 = GetPosition(DTid.xy+int2(-1,0),iResolution,SizeX);
+	float3 P3 = GetPosition(DTid.xy+int2(0,1),iResolution,SizeX);
+	float3 P4 = GetPosition(DTid.xy+int2(0,-1),iResolution,SizeX);
+
+	float3 N = cross(P1-ThisPoint,P3-ThisPoint);
+	N += cross(P3-ThisPoint,P2-ThisPoint);
+	N += cross(P2-ThisPoint,P4-ThisPoint);
+	N += cross(P4-ThisPoint,P1-ThisPoint);
+	
+	Normal[DTid.xy].xyz = normalize(N);
+}

@@ -1,0 +1,14 @@
+# Directories
+.vs/
+bin/
+bin-int/
+Build/
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Content/StarterContent
+
+# Files
+*.user
+!*.exe

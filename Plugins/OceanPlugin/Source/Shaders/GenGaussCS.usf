@@ -1,0 +1,50 @@
+#include "/Engine/Public/Platform.ush"
+
+float Random;
+float2 Size;
+RWTexture2D<float4> Output;
+#define PI 3.1415926
+
+float RandValueFast(float2 UVs,float Magic = 3571.0)
+{
+    float i = UVs.x*Magic+UVs.y*12.2134+sin(UVs.y*1.213+0.7123)*(Magic/10+21.1213);
+    float i2 = frac(i/321.2112+UVs.y*21.1231);
+    float i3 = (i2*i+cos(UVs.x*1.2113+1.2312)*Magic/12.2123)/i;
+    float Random = frac(i3*i2*Magic*0.091231);
+    return Random;
+}
+
+float RandomToRandom(float Random)
+{
+    return frac((1664.525*Random+0.4223)*0.32579);
+}
+
+float2 Guass(float Random1,float Random2)
+{
+    if(Random1<1e-6f)
+        Random1 = 1e-6f;
+
+    float2 z;
+    z.x = sqrt(-2 * log(Random1)) * cos(2 * PI * Random2);
+    z.y = sqrt(-2 * log(Random1)) * sin(2 * PI * Random2);
+    return z;
+}
+
+[numthreads(32,32,1)]
+void MainCS(uint3 Gid:SV_GroupID,uint3 DTid : SV_DispatchThreadID)
+{
+    float r = frac(Random*12.1912)*0.5+1.1512;
+    
+    float2 UVs =(float2)DTid.xy/Size;
+    float r1 = RandValueFast(UVs,1032.761*r);
+    float r2 = RandomToRandom(r1);
+    float r3 = RandValueFast(UVs,1921.191*r);
+    float r4 = RandomToRandom(r3);
+    r1 = RandomToRandom(r1*r4*2.819371);
+    r3 = RandomToRandom(r2*r3*3.157448);
+
+    float2 z1 = Guass(r1,r2);
+    float2 z2 = Guass(r3,r4);
+
+    Output[DTid.xy] = float4(z1,z2);
+}

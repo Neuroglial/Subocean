@@ -1,0 +1,39 @@
+#include "/Engine/Public/Platform.ush"
+
+int4 Select;
+float4 Multi;
+Texture2D Input;
+RWTexture2D<float4> Output;
+
+[numthreads(32,32,1)]
+void MainCS(uint3 Gid:SV_GroupID,uint3 DTid : SV_DispatchThreadID)
+{
+	float4 value = Input[DTid.xy];
+	float4 Out;
+	
+	for(int i =0;i<4;i++)
+	{
+		switch (Select[i])
+		{
+		case 0:
+			Out[i] = Output[DTid.xy][i];
+			break;
+		case 1:
+			Out[i]=value[0]*Multi[i];
+			break;
+		case 2:
+			Out[i]=value[1]*Multi[i];
+			break;
+		case 3:
+			Out[i]=value[2]*Multi[i];
+			break;
+		case 4:
+			Out[i]=value[3]*Multi[i];
+			break;
+		default:
+			break;
+		}
+	}
+
+	Output[DTid.xy] = Out;
+}

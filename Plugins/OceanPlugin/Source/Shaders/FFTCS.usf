@@ -1,0 +1,99 @@
+#include "/Engine/Public/Platform.ush"
+
+#define PI	3.1415926
+
+int3 StepNUM_Inverse_LineX;
+Buffer<int> IndexBuffer;
+Texture2D<float2> InputRT; 
+RWTexture2D<float2> OutputRT;
+
+groupshared float2 GroupSharedDate[NUM];
+
+//复数乘法
+float2 mulc(float2 a, float2 b)
+{
+	return float2(
+		a.x*b.x - a.y*b.y ,
+		a.x*b.y + b.x*a.y);
+}
+ 
+//转换成单位根向量
+float2 rootOfUnityc(int k, int n)
+{
+	return float2(
+		cos(2.0 * PI * float(k) / float(n)),
+		StepNUM_Inverse_LineX.y*sin(2.0 * PI * float(k) / float(n)));
+}
+
+void FFT(const int index)
+{
+	int GroupSize;
+	int GroupIndx;
+	int IndexInGroup;
+	int indexL;
+	int indexR;
+	float2 LeftValue;
+	float2 RightValue;
+	
+	for(int dep = 0; dep<StepNUM_Inverse_LineX.x; dep++)
+	{
+		GroupSize = pow(2,dep);
+		GroupIndx = index/GroupSize;
+		IndexInGroup = index%GroupSize;
+		indexL = GroupSize*GroupIndx*2+IndexInGroup;
+		indexR = indexL.x+GroupSize;
+		
+		GroupMemoryBarrierWithGroupSync();
+		LeftValue = GroupSharedDate[indexL];
+		RightValue = GroupSharedDate[indexR];
+		
+	
+		float2 w = rootOfUnityc(IndexInGroup,GroupSize*2);
+	
+		float2 multiply = mulc(w,RightValue);
+
+		GroupMemoryBarrierWithGroupSync();
+		GroupSharedDate[indexL] = LeftValue + multiply;
+		GroupSharedDate[indexR] = LeftValue - multiply;
+	}
+}
+
+[numthreads(NUM/2,1,1)]
+void MainCS(uint3 Gid:SV_GroupID,uint3 DTid : SV_DispatchThreadID)
+{
+	int2 IndexL = int2(IndexBuffer[DTid.x],DTid.y);
+	int2 IndexR = int2(IndexBuffer[DTid.x +NUM/2],DTid.y);
+	
+	if(StepNUM_Inverse_LineX.y==-1)
+	{
+		GroupSharedDate[DTid.x] = StepNUM_Inverse_LineX.z ? InputRT[IndexL] : InputRT[IndexL.yx];
+		GroupSharedDate[DTid.x+NUM/2] = StepNUM_Inverse_LineX.z ? InputRT[IndexR] : InputRT[IndexR.yx];
+	}
+	else
+	{
+		IndexL.x = IndexL.x >= NUM/2 ? IndexL.x-NUM/2 : IndexL.x+NUM/2;
+		IndexR.x = IndexR.x >= NUM/2 ? IndexR.x-NUM/2 : IndexR.x+NUM/2;
+		
+		GroupSharedDate[DTid.x] = StepNUM_Inverse_LineX.z ? InputRT[IndexL] : InputRT[IndexL.yx];
+		GroupSharedDate[DTid.x+NUM/2] = StepNUM_Inverse_LineX.z ? InputRT[IndexR] : InputRT[IndexR.yx];
+	}
+	
+	FFT(DTid.x);
+
+	GroupMemoryBarrierWithGroupSync();
+	IndexL = int2(DTid.x,DTid.y);
+	IndexR = int2(DTid.x+NUM/2,DTid.y);
+	
+	if(StepNUM_Inverse_LineX.z)
+	{
+		OutputRT[IndexL] = StepNUM_Inverse_LineX.y==1 ? GroupSharedDate[IndexL.x] : GroupSharedDate[IndexR.x]/NUM;
+		OutputRT[IndexR] = StepNUM_Inverse_LineX.y==1 ? GroupSharedDate[IndexR.x] : GroupSharedDate[IndexL.x]/NUM;
+	}
+	else
+	{
+		OutputRT[IndexL.yx] = StepNUM_Inverse_LineX.y==1 ? GroupSharedDate[IndexL.x] : GroupSharedDate[IndexR.x]/NUM;
+		OutputRT[IndexR.yx] = StepNUM_Inverse_LineX.y==1 ? GroupSharedDate[IndexR.x] : GroupSharedDate[IndexL.x]/NUM;
+	}
+
+	
+}
